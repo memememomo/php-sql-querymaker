@@ -1,0 +1,195 @@
+NAME
+
+  uchiko\SQL\QueryMaker - helper functions for SQL query generation
+
+SYNOPSIS
+
+        my $query = sql_eq('foo', $v);
+        $query->asSql();                 # `foo`=?
+        $query->bind();                  # ($v)
+
+        my $query = sql_lt('foo', $v);
+        $query->asSql();                 # `foo`<?
+        $query->bind();                  # ($v)
+
+        my $query = sql_in('foo', array(
+            $v1, $v2, $v3,
+        ));
+        $query->asSql();                 # `foo` IN (?,?,?)
+        $query->bind();                  # ($v1,$v2,$v3)
+
+        my $query = sql_and('foo', array8
+            sql_ge($min),
+            sql_lt($max)
+        ));
+        $query->asSql();               # `foo`>=? AND `foo`<?
+        $query->bind();                # ($min,$max)
+
+        my $query = sql_and(array(
+            sql_eq('foo', $v1),
+            sql_eq('bar', $v2)
+        ));
+        $query->as_sql();                 # `foo`=? AND `bar`=?
+        $query->bind();                   # ($v1,$v2)
+
+        my $query = sql_and(array(
+            'foo' => $v1,
+            'bar' => sql_lt($v2),
+        ));
+        $query->asSql();                 # `foo`=? AND `bar`<?
+        $query->bind();                  # ($v1,$v2)
+
+DESCRIPTION
+    This module is a php port of following perl modules:
+    
+       https://github.com/kazuho/SQL-QueryMaker
+    
+    This module concentrates on providing an expressive, concise way to
+    declare SQL expressions by exporting carefully-designed functions. It is
+    possible to use the module to generate SQL query conditions and pass
+    them as arguments to other more versatile query builders such as
+    uchiko\SQL\Maker.
+
+    The functions exported by the module instantiate comparator objects that
+    build SQL expressions when their "asSql" method are being invoked.
+    There are two ways to specify the names of the columns to the
+    comparator; to pass in the names as argument or to specify then as an
+    argument to the "asSql" method.
+
+FUNCTIONS
+  "sql_eq(array($column,) $value)"
+  "sql_lt(array($column,) $value)"
+  "sql_gt(array($column,) $value)"
+  "sql_le(array($column,) $value)"
+  "sql_ge(array($column,) $value)"
+  "sql_like(array($column,) $value)"
+  "sql_is_null(array($column))"
+  "sql_is_not_null(array($column))"
+  "sql_not(array($column))"
+  "sql_between(array($column,) $min_value, $max_value)"
+  "sql_not_between(array($column,) $min_value, $max_value)"
+  "sql_in(array($column,) $values)"
+  "sql_not_in(array($column,) $values)"
+    Instantiates a comparator object that tests a column against given
+    value(s).
+
+  "sql_and(array($column,) $conditions)"
+  "sql_or(array($column,) $conditions)"
+    Aggregates given comparator objects into a logical expression.
+
+    If specified, the column name is pushed down to the arguments when the
+    "as_sql" method is being called, as show in the second example below.
+
+        sql_and(array(                   # => `foo`=? AND `bar`<?
+            sql_eq("foo", $v1),
+            sql_lt("bar", $v2)
+        ))
+
+        sql_and("foo", array(          # => `foo`>=$min OR `foo`<$max
+            sql_ge($min),
+            sql_lt($max),
+        ))
+
+  "sql_and($conditions)"
+  "sql_or($conditions)"
+    Aggregates given pairs of column names and comparators into a logical
+    expression.
+
+    The value part is composed of as the argument to the "=" operator if it
+    is not a blessed reference.
+
+        my $query = sql_and(array(
+            foo => 'abc',
+            bar => sql_lt(123),
+        ));
+        $query->asSql();             # => `foo`=? AND bar<?
+        $query->bind();              # => ('abc', 123)
+
+  "sql_op(array($column,) $op_sql, $bind_values)"
+    Generates a comparator object that tests a column using the given SQL
+    and values. "<@"> in the given SQL are replaced by the column name
+    (specified either by the argument to the function or later by the call
+    to the "<as_sql"> method), and "<?"> are substituted by the given bind
+    values.
+
+  "sql_raw($sql, $bind_values)"
+    Generates a comparator object from raw SQL and bind values. "<?"> in the
+    given SQL are replaced by the bind values.
+
+  "$obj->asSql()"
+  "$obj->asSql($column_name)"
+  "$obj->asSql($column_name, $quote_identifier_cb)"
+    Compiles given comparator object and returns an SQL expression.
+    Corresponding bind values should be obtained by calling the "bind"
+    method.
+
+    The function optionally accepts a column name to which the comparator
+    object should be bound; an error is thrown if the comparator object is
+    already bound to another column.
+
+    The function also accepts a callback for quoting the identifiers. If
+    omitted, the identifiers are quoted using "`" after being splitted using
+    "."; i.e. a column designated as "foo.bar" is quoted as `foo`.`bar`.
+
+  "$obj->bind()"
+    Returns a list of bind values corresponding to the SQL expression
+    returned by the "as_sql" method.
+
+CHEAT SHEET
+    IN:        sql_eq('foo', 'bar')
+    OUT QUERY: '`foo` = ?'
+    OUT BIND:  array('bar')
+
+    IN:        sql_in('foo', array('bar', 'baz'))
+    OUT QUERY: '`foo` IN (?,?)'
+    OUT BIND:  array('bar','baz')
+
+    IN:        sql_and(array(sql_eq('foo', 'bar'), sql_eq('baz', 123)))
+    OUT QUERY: '(`foo` = ?) AND (`baz` = ?)'
+    OUT BIND:  array('bar',123)
+
+    IN:        sql_and('foo', array(sql_ge(3), sql_lt(5)))
+    OUT QUERY: '(`foo` >= ?) AND (`foo` < ?)'
+    OUT BIND:  array(3,5)
+
+    IN:        sql_or(array(sql_eq('foo', 'bar'), sql_eq('baz', 123)))
+    OUT QUERY: '(`foo` = ?) OR (`baz` = ?)'
+    OUT BIND:  array('bar',123)
+
+    IN:        sql_or('foo', array('bar', 'baz'))
+    OUT QUERY: '(`foo` = ?) OR (`foo` = ?)'
+    OUT BIND:  array('bar','baz')
+
+    IN:        sql_is_null('foo')
+    OUT QUERY: '`foo` IS NULL'
+    OUT BIND:  array()
+
+    IN:        sql_is_not_null('foo')
+    OUT QUERY: '`foo` IS NOT NULL'
+    OUT BIND:  array()
+
+    IN:        sql_between('foo', 1, 2)
+    OUT QUERY: '`foo` BETWEEN ? AND ?'
+    OUT BIND:  array(1,2)
+    
+    IN:        sql_not('foo')
+    OUT QUERY: 'NOT `foo`'
+    OUT BIND:  array()
+
+    IN:        sql_op('apples', 'MATCH (@) AGAINST (?)', array('oranges'))
+    OUT QUERY: 'MATCH (`apples`) AGAINST (?)'
+    OUT BIND:  array('oranges')
+
+    IN:        sql_raw('SELECT * FROM t WHERE id=?',array(123))
+    OUT QUERY: 'SELECT * FROM t WHERE id=?'
+    OUT BIND:  array(123)
+
+    IN:        sql_in('foo', array(123,sql_raw('SELECT id FROM t WHERE cat=?',array(5))))
+    OUT QUERY: '`foo` IN (?,(SELECT id FROM t WHERE cat=?))'
+    OUT BIND:  array(123,5)
+
+AUTHOR
+    Uchiko <memememomo @ gmail com>
+
+SEE ALSO
+    SQL::QueryMaker <https://metacpan.org/pod/SQL::QueryMaker>
