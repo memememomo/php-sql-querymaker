@@ -1,0 +1,24 @@
+{
+    "name": "uchiko/sql-querymaker",
+    "description": "",
+    "keywords": ["query", "builder"],
+    "type": "library",
+    "license": "MIT",
+    "homepage": "https://github.com/memememomo/php-sql-querymaker",
+    "authors": [
+        {
+            "name": "Uchiko",
+            "email": "memememomo@gmail.com"
+        }
+    ],
+    "require": {
+    },
+    "require-dev": {
+        "phpunit/phpunit": "4.1.*"
+    },
+    "autoload": {
+        "psr-0": {
+            "uchiko\\SQL\\QueryMaker": "src/"
+        }
+    }
+}
