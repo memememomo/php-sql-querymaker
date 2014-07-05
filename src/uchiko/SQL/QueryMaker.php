@@ -245,6 +245,7 @@ namespace {
 namespace uchiko\SQL {
 
     class QueryMaker {
+        const VERSION = '0.01';
 
         private $_bind = array();
         private $_column;
